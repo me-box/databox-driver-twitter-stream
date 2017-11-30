@@ -15,7 +15,6 @@ try {
   DefaultTwitConfig = {};
 }
 
-var DATABOX_STORE_BLOB_ENDPOINT = process.env.DATABOX_STORE_ENDPOINT;
 const DATABOX_ZMQ_ENDPOINT = process.env.DATABOX_ZMQ_ENDPOINT
 
 const credentials = databox.getHttpsCredentials();
@@ -24,15 +23,6 @@ var PORT = process.env.port || '8080';
 
 var HASH_TAGS_TO_TRACK = ['#raspberrypi', '#mozfest', '#databox', '#iot', '#NobelPrize'];
 var TWITER_USER = 'databox_mozfest';
-
-
-var allowCrossDomain = function(req, res, next) {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, Content-Length, X-Requested-With');
-    res.header('Content-Type', 'application/json');
-    next();
-};
 
 var app = express();
 
@@ -112,6 +102,11 @@ app.get("/status", function(req, res) {
     res.send("active");
 });
 
+console.log("[Creating server]");
+https.createServer(credentials, app).listen(PORT);
+module.exports = app;
+
+
 var T = null;
 
 var vendor = "databox";
@@ -140,7 +135,7 @@ userDM.Description = 'Twitter users direct messages';
 userDM.ContentType = 'application/json';
 userDM.Vendor = 'Databox Inc.';
 userDM.DataSourceType = 'twitterDirectMessage';
-userDM.DatasourceID = 'twitterDirectMessage';
+userDM.DataSourceID = 'twitterDirectMessage';
 userDM.StoreType = 'ts';
 
 let userRetweet = databox.NewDataSourceMetadata();
@@ -148,7 +143,7 @@ userRetweet.Description = 'Twitter users retweets';
 userRetweet.ContentType = 'application/json';
 userRetweet.Vendor = 'Databox Inc.';
 userRetweet.DataSourceType = 'twitterRetweet';
-userRetweet.DatasourceID = 'twitterRetweet';
+userRetweet.DataSourceID = 'twitterRetweet';
 userRetweet.StoreType = 'ts';
 
 let userFav = databox.NewDataSourceMetadata();
@@ -177,37 +172,33 @@ driverSettings.DataSourceID = 'twitterSettings';
 driverSettings.StoreType = 'kv';
 
 
-tsc.RegisterDataSource(timeLine)
+tsc.RegisterDatasource(timeLine)
 .then(() => {
-  return tsc.RegisterDataSource(hashTag);
+  return tsc.RegisterDatasource(hashTag);
 })
 .then(() => {
-  return tsc.RegisterDataSource(userDM);
+  return tsc.RegisterDatasource(userDM);
 })
 .then(() => {
-  return tsc.RegisterDataSource(userRetweet);
+  return tsc.RegisterDatasource(userRetweet);
 })
 .then(() => {
-  return tsc.RegisterDataSource(userFav);
+  return tsc.RegisterDatasource(userFav);
 })
 .then(() => {
-  return tsc.RegisterDataSource(testActuator);
+  return tsc.RegisterDatasource(testActuator);
 })
 .then(() => {
-  return kvc.RegisterDataSource(driverSettings);
+  return kvc.RegisterDatasource(driverSettings);
 })
 .catch((err) => {
   console.log("Error registering data source:" + err);
 });
 
-console.log("GET SETTINGS", res);
 getSettings()
   .then((settings)=>{
-    console.log("[Creating server] and twitter Auth");
-    https.createServer(credentials, app).listen(PORT);
-
     console.log("Twitter Auth");
-    if(Object.keys(settings).length !== 0) {
+    if(settings.hasOwnProperty('consumer_key')) {
       return Promise.all([twitter.connect(settings),Promise.resolve(settings)]);
     } else {
       return Promise.all([Promise.resolve(null),Promise.resolve(settings)]);
@@ -242,9 +233,6 @@ getSettings()
   .catch((err) => {
     console.log("[ERROR]",err);
   });
-
-module.exports = app;
-
 
 var streams = [];
 const monitorTwitterEvents = (twit,settings)=>{
@@ -281,45 +269,56 @@ const monitorTwitterEvents = (twit,settings)=>{
     });
 };
 
-const stopAllStreams = () => {
+function stopAllStreams () {
   streams.map((st)=>{st.stop();});
   streams = [];
 }
 
-const getSettings = () => {
-  let datasourceid = 'twitterSettings';
-
-  return kvc.Read(datasourceid)
+function getSettings () {
+  datasourceid = 'twitterSettings';
+  return new Promise((resolve,reject)=>{
+    kvc.Read(datasourceid)
     .then((settings)=>{
+      if(Object.keys(settings).length == 0) {
+         //return defaults
+       let settings = DefaultTwitConfig;
+       settings.hashTags = HASH_TAGS_TO_TRACK;
+       console.log("[getSettings] using defaults Using ----> ", settings);
+       resolve(settings);
+       return
+      }
       console.log("[getSettings]",settings);
       resolve(settings);
     })
     .catch((err)=>{
-      let settings = DefaultTwitConfig;
-      settings.hashTags = HASH_TAGS_TO_TRACK;
-      console.log("[getSettings] using defaults Using ----> ", settings);
-      resolve(settings);
-      return
+     let settings = DefaultTwitConfig;
+     settings.hashTags = HASH_TAGS_TO_TRACK;
+     console.log("[getSettings] using defaults Using ----> ", settings);
+     resolve(settings);
+     return
     });
-};
+  });
+ };
 
-const setSettings = (settings) => {
+function setSettings (settings) {
  let datasourceid = 'twitterSettings';
- return kvc.Write(datasourceid, settings)
-  .then(()=>{
-    console.log('[setSettings] settings saved', settings);
-    resolve(settings);
-  })
-  .catch((err)=>{
-    console.log("Error setting settings", err);
-    reject(err);
+ return new Promise ((resolve,reject)=>{
+  kvc.Write(datasourceid, settings)
+    .then(()=>{
+      console.log('[setSettings] settings saved', settings);
+      resolve(settings);
+    })
+    .catch((err)=>{
+      console.log("Error setting settings", err);
+      reject(err);
+    });
   });
 };
 
-const save = (datasourceid,data) => {
-  console.log("Saving data::", datasourceid, {"data": data});
+function save (datasourceid,data) {
+  console.log("Saving data::", typeof data, datasourceid, {"data": data});
   json = {"data": data};
-  tsc.Write(datasourceid,json)
+  tsc.Write(datasourceid,data)
   .then((resp)=>{
     console.log("Save got response ", resp);
   })
