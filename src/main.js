@@ -16,6 +16,7 @@ try {
 }
 
 var DATABOX_STORE_BLOB_ENDPOINT = process.env.DATABOX_STORE_ENDPOINT;
+const DATABOX_ZMQ_ENDPOINT = process.env.DATABOX_ZMQ_ENDPOINT
 
 const credentials = databox.getHttpsCredentials();
 
@@ -115,82 +116,92 @@ var T = null;
 
 var vendor = "databox";
 
-databox.waitForStoreStatus(DATABOX_STORE_BLOB_ENDPOINT,'active',10)
-  .then(() => {
-    //register datasources
-    proms = [
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Twitter user timeline data',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'twitterUserTimeLine',
-        datasourceid: 'twitterUserTimeLine',
-        storeType: 'store-json'
-      }).then((err,data)=>{console.log("DS Added",DATABOX_STORE_BLOB_ENDPOINT,err,data)}),
+let tsc = databox.NewTimeSeriesClient(DATABOX_ZMQ_ENDPOINT, false);
+let kvc = databox.NewKeyValueClient(DATABOX_ZMQ_ENDPOINT, false);
 
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Twitter hashtag data',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'twitterHashTagStream',
-        datasourceid: 'twitterHashTagStream',
-        storeType: 'store-json'
-      }),
+let timeLine = databox.NewDataSourceMetadata();
+timeLine.Description =  'Twitter user timeline data';
+timeLine.ContentType = 'application/json';
+timeLine.Vendor = 'Databox Inc.';
+timeLine.DataSourceType = 'twitterUserTimeLine';
+timeLine.DataSourceID = 'twitterUserTimeLine';
+timeLine.StoreType = 'ts';
 
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Twitter users direct messages',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'twitterDirectMessage',
-        datasourceid: 'twitterDirectMessage',
-        storeType: 'store-json'
-      }),
+let hashTag = databox.NewDataSourceMetadata();
+hashTag.Description =  'Twitter user hashtag data';
+hashTag.ContentType = 'application/json';
+hashTag.Vendor = 'Databox Inc.';
+hashTag.DataSourceType = 'twitterHashTagStream';
+hashTag.DataSourceID = 'twitterHashTagStream';
+hashTag.StoreType = 'ts';
 
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Twitter users retweets',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'twitterRetweet',
-        datasourceid: 'twitterRetweet',
-        storeType: 'store-json'
-      }),
+let userDM = databox.NewDataSourceMetadata();
+userDM.Description = 'Twitter users direct messages';
+userDM.ContentType = 'application/json';
+userDM.Vendor = 'Databox Inc.';
+userDM.DataSourceType = 'twitterDirectMessage';
+userDM.DatasourceID = 'twitterDirectMessage';
+userDM.StoreType = 'ts';
 
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Twitter users favorite tweets',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'twitterFavorite',
-        datasourceid: 'twitterFavorite',
-        storeType: 'store-json'
-      }),
+let userRetweet = databox.NewDataSourceMetadata();
+userRetweet.Description = 'Twitter users retweets';
+userRetweet.ContentType = 'application/json';
+userRetweet.Vendor = 'Databox Inc.';
+userRetweet.DataSourceType = 'twitterRetweet';
+userRetweet.DatasourceID = 'twitterRetweet';
+userRetweet.StoreType = 'ts';
 
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Test Actuator',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'testActuator',
-        datasourceid: 'testActuator',
-        storeType: 'store-json',
-        isActuator:true
-      }),
+let userFav = databox.NewDataSourceMetadata();
+userFav.Description = 'Twitter users favorite tweets';
+userFav.ContentType = 'application/json';
+userFav.Vendor = 'Databox Inc.';
+userFav.DataSourceType = 'twitterFavorite';
+userFav.DataSourceID = 'twitterFavorite';
+userFav.StoreType = 'ts';
 
-      databox.catalog.registerDatasource(DATABOX_STORE_BLOB_ENDPOINT, {
-        description: 'Twitter driver settings',
-        contentType: 'text/json',
-        vendor: 'Databox Inc.',
-        type: 'twitterSettings',
-        datasourceid: 'twitterSettings',
-        storeType: 'store-json',
-      })
+let testActuator = databox.NewDataSourceMetadata();
+testActuator.Description = 'Test Actuator';
+testActuator.ContentType = 'application/json';
+testActuator.Vendor = 'Databox Inc.';
+testActuator.DataSourceType = 'testActuator';
+testActuator.DataSourceID = 'testActuator';
+testActuator.StoreType = 'ts';
+testActuator.IsActuator = true;
 
-    ];
+let driverSettings = databox.NewDataSourceMetadata();
+driverSettings.Description = 'Twitter driver settings';
+driverSettings.ContentType = 'application/json';
+driverSettings.Vendor = 'Databox Inc.';
+driverSettings.DataSourceType = 'twitterSettings';
+driverSettings.DataSourceID = 'twitterSettings';
+driverSettings.StoreType = 'kv';
 
-    return Promise.all(proms);
-  })
-  .then((res)=>{
-    console.log("GET SETTINGS", res);
-    return getSettings();
-  })
+
+tsc.RegisterDataSource(timeLine)
+.then(() => {
+  return tsc.RegisterDataSource(hashTag);
+})
+.then(() => {
+  return tsc.RegisterDataSource(userDM);
+})
+.then(() => {
+  return tsc.RegisterDataSource(userRetweet);
+})
+.then(() => {
+  return tsc.RegisterDataSource(userFav);
+})
+.then(() => {
+  return tsc.RegisterDataSource(testActuator);
+})
+.then(() => {
+  return kvc.RegisterDataSource(driverSettings);
+})
+.catch((err) => {
+  console.log("Error registering data source:" + err);
+});
+
+console.log("GET SETTINGS", res);
+getSettings()
   .then((settings)=>{
     console.log("[Creating server] and twitter Auth");
     https.createServer(credentials, app).listen(PORT);
@@ -209,21 +220,14 @@ databox.waitForStoreStatus(DATABOX_STORE_BLOB_ENDPOINT,'active',10)
     let settings = data[1];
 
     //deal with the actuator
-    var actuationEmitter = null;
-    databox.subscriptions.connect(DATABOX_STORE_BLOB_ENDPOINT)
+    let datasourceid = "testActuator";
+    tsc.Observe(testActuator, 0)
     .catch((err)=>{
-      console.log("[Actuation connect error]",err);
+      console.log("[Actuation observing error]",err);
     })
     .then((eventEmitter)=>{
-      actuationEmitter = eventEmitter;
-      return databox.subscriptions.subscribe(DATABOX_STORE_BLOB_ENDPOINT,'testActuator','ts');
-    })
-    .catch((err)=>{
-      console.log("[Actuation subscribe error]",err);
-    })
-    .then(()=>{
-      actuationEmitter.on('data',(endpointHost, actuatorId, data)=>{
-        console.log("[Actuation] data received",endpointHost, actuatorId, data);
+      eventEmitter.on('data',(data)=>{
+        console.log("[Actuation] data received ", data);
       });
     })
     .catch((err)=>{
@@ -283,55 +287,43 @@ const stopAllStreams = () => {
 }
 
 const getSettings = () => {
- endpoint = DATABOX_STORE_BLOB_ENDPOINT;
- datasourceid = 'twitterSettings';
- return new Promise((resolve,reject)=>{
+  let datasourceid = 'twitterSettings';
 
-   databox.keyValue.read(endpoint,datasourceid)
-   .then((settings)=>{
-     if(settings.status && settings.status == 404) {
-        //return defaults
+  return kvc.Read(datasourceid)
+    .then((settings)=>{
+      console.log("[getSettings]",settings);
+      resolve(settings);
+    })
+    .catch((err)=>{
       let settings = DefaultTwitConfig;
       settings.hashTags = HASH_TAGS_TO_TRACK;
       console.log("[getSettings] using defaults Using ----> ", settings);
       resolve(settings);
       return
-     }
-     console.log("[getSettings]",settings);
-     resolve(settings);
-   })
-   .catch((err)=>{
-    let settings = DefaultTwitConfig;
-    settings.hashTags = HASH_TAGS_TO_TRACK;
-    console.log("[getSettings] using defaults Using ----> ", settings);
-    resolve(settings);
-    return
-   });
- });
+    });
 };
 
 const setSettings = (settings) => {
- let endpoint = DATABOX_STORE_BLOB_ENDPOINT;
  let datasourceid = 'twitterSettings';
- return new Promise((resolve,reject)=>{
-
-   databox.keyValue.write(endpoint,datasourceid,settings)
-   .then(()=>{
-     console.log('[setSettings] settings saved', settings);
-     resolve(settings);
-   })
-   .catch((err)=>{
-     console.log("Error setting settings", err);
-     reject(err);
-   });
-
- });
+ return kvc.Write(datasourceid, settings)
+  .then(()=>{
+    console.log('[setSettings] settings saved', settings);
+    resolve(settings);
+  })
+  .catch((err)=>{
+    console.log("Error setting settings", err);
+    reject(err);
+  });
 };
 
 const save = (datasourceid,data) => {
-  console.log("Saving data::", datasourceid, data.text);
-  databox.timeseries.write(DATABOX_STORE_BLOB_ENDPOINT, datasourceid, data)
+  console.log("Saving data::", datasourceid, {"data": data});
+  json = {"data": data};
+  tsc.Write(datasourceid,json)
+  .then((resp)=>{
+    console.log("Save got response ", resp);
+  })
   .catch((error)=>{
-    console.log("[Error writing to store]", error);
+    console.log("Error writing to store:", error);
   });
 }
