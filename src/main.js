@@ -316,7 +316,7 @@ function setSettings (settings) {
 };
 
 function save (datasourceid,data) {
-  console.log("Saving data::", typeof data, datasourceid, {"data": data});
+  console.log("Saving tweet::", data.text);
   json = {"data": data};
   tsc.Write(datasourceid,data)
   .then((resp)=>{
