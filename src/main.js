@@ -212,7 +212,7 @@ getSettings()
 
     //deal with the actuator
     let datasourceid = "testActuator";
-    tsc.Observe(testActuator, 0)
+    tsc.Observe(testActuator.DataSourceID, 0)
     .catch((err)=>{
       console.log("[Actuation observing error]",err);
     })
