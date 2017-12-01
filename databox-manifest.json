@@ -2,7 +2,7 @@
   "manifest-version": 1,
 
   "name": "driver-twitter",
-  "version": "0.1.0",
+  "version": "0.3.0",
 
   "description": "A simple Databox driver to stream twitter data",
   "author": "Anthony Brown <Anthony.Brown@nottingham.ac.uk> ()",
