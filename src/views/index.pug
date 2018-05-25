@@ -1,78 +1,58 @@
 doctype html
 html(lang='en')
 	head
-		title Databox Mobile Driver
-		script(src='ui/jquery-3.2.0.min.js')
-		style.
-			body  {
-				font-size: 1.25rem;
-				font-weight: 300;
-			}
-			
-			h1 {
-				font-size: 2.5rem;
-				margin-bottom: 1rem;
-			}		
-			h2 {
-				font-size: 1.75rem;
-				margin-bottom: .8rem;
-			}		
-			p, ul {
-				margin: .5rem;
-			}
-			label {
-				display: inline-block;
-				width: 10em;
-			}
-			input {
-				font-size: 1rem;
-			}
-	body
-		h1 Databox Twitter Driver
-		h2 Twitter Credentuals (https://apps.twitter.com/)
-		p
-			label(for='consumer_key') #{'Consumer Key'}
-			input(id='consumer_key', type='input', value=consumer_key)
-		p
-			label(for='consumer_secret') #{'Consumer Secret'}
-			input(id='consumer_secret', type='input', value=consumer_secret)
-		p
-			label(for='access_token') #{'Access Token'}
-			input(id='access_token', type='input', value=access_token)
-		p
-			label(for='access_token_secret') #{'Access Token Secret'}
-			input(id='access_token_secret', type='input', value=access_token_secret)
-		p
-			button(id='save_creds' type='button' value='Save') Save
-			span(id='creds_msg')
+		title Databox Twitter Driver
+		base(href='/driver-twitter/ui/')
+		link(rel='stylesheet', href='material-components-web.min.css')
+		script(src='material-components-web.min.js', defer=true)
+		script(src='bundle.js', defer=true)
+	body(style="margin: 16px")
+		form.mdc-card(method="post", action=(access_token == null ? "login" : "logout"))
+			input#callback(type="hidden", name="callback", value="")
+			if(access_token == null)
+				div(style="padding: 0 16px")
+					h2.mdc-typography--headline6 Twitter Account
+					a.mdc-typography--body1(href="https://apps.twitter.com/", target="_blank")
+						| App Credentials
 
-		h2 HashTags for twitter hastag stream (https://apps.twitter.com/)
-		p A comma seperated list of HashTags  
-		p
-			label(for='hasTags') #{'Hash Tags'}
-			input(id='hasTags', type='input', value=hashTags)
-		p
-			button(id='save_hashtags' type='button' value='save') Save
-			span(id='hashtag_msg')
+					div.mdc-text-field(style="width:100%")
+						input#consumer_key.mdc-text-field__input(type="text", name="consumer_key", value=consumer_key)
+						label.mdc-floating-label(for="consumer_key")
+							| Consumer Key
+						div.mdc-line-ripple
 
-		script.
-			$(document).ready(function(){
+					div.mdc-text-field(style="width:100%")
+						input#consumer_secret.mdc-text-field__input(type="text", name="consumer_secret" value=consumer_secret)
+						label.mdc-floating-label(for="consumer_secret")
+							| Consumer Secret
+						div.mdc-line-ripple
 
-				$('#save_creds').click(function(){
-					$.get('ui/setCreds', { 
-											'consumer_key':$('#consumer_key').val(),
-											'consumer_secret':$('#consumer_secret').val(),
-											'access_token':$('#access_token').val(),
-											'access_token_secret': $('#access_token_secret').val()
-										})
-					.done(()=>{
-						$('#creds_msg').text(' saved!')
-					})
-				});
-				$('#save_hashtags').click(function(){
-					$.get('ui/setHashTags', { 'hashTags': $('#hasTags').val()})
-					.done(()=>{
-						$('#hashtag_msg').text(' saved!')
-					})
-				});
-			});
+				div.mdc-card__actions(style="flex-direction: row-reverse")
+					div.mdc-card__action-buttons
+						button.mdc-button#twitter_login
+							| Login
+			else
+				div(style="padding: 0 16px")
+					h2.mdc-typography--headline6 Twitter Account
+
+				div.mdc-card__actions(style="flex-direction: row-reverse")
+					div.mdc-card__action-buttons
+						button.mdc-button#twitter_logout
+							| Logout
+
+		div.mdc-card(style="margin-top: 16px")
+			div(style="padding: 0 16px")
+				h2.mdc-typography--headline6 HashTags
+
+				div.mdc-text-field(style="width:100%")
+					input#hashTags.mdc-text-field__input(type="text", value=hashTags.join(','))
+					label.mdc-floating-label(for="hashTags") Twitter Stream HashTags
+					div.mdc-line-ripple
+				div.mdc-text-field-helper-text
+					| A comma separated list of hashtags
+
+				div(id='hashtag_msg')
+
+			div.mdc-card__actions(style="flex-direction: row-reverse")
+				div.mdc-card__action-buttons
+					button.mdc-button#save_hashtags(type='button' value='save') Save
