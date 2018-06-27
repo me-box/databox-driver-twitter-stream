@@ -110,12 +110,10 @@ app.post('/ui/logout', (req, res) => {
 		.then((settings) => {
 			settings.access_token = null;
 			settings.access_token_secret = null;
-			settings.redirect = req.body.callback;
 			stopAllStreams();
 			setSettings(settings)
 				.then(() => {
-					let redirectURL = settings.redirect;
-					redirectURL = redirectURL.replace('/ui/oauth', '/ui').replace('/driver-twitter', '/#!/driver-twitter');
+					let redirectURL = '/driver-twitter/ui';
 					res.render('redirect', {url: redirectURL});
 				});
 		});
@@ -327,15 +325,42 @@ function stopAllStreams() {
 }
 
 function getSettings() {
+	datasourceid = 'twitterSettings';
 	return new Promise((resolve, reject) => {
-		resolve(inlineSettings);
+		kvc.Read(datasourceid, "settings")
+			.then((settings) => {
+				if (Object.keys(settings).length === 0) {
+					//return defaults
+					let settings = DefaultTwitConfig;
+					settings.hashTags = HASH_TAGS_TO_TRACK;
+					console.log("[getSettings] using defaults Using ----> ", settings);
+					resolve(settings);
+					return
+				}
+				console.log("[getSettings]", settings);
+				resolve(settings);
+			})
+			.catch((err) => {
+				let settings = DefaultTwitConfig;
+				settings.hashTags = HASH_TAGS_TO_TRACK;
+				console.log("[getSettings] using defaults Using ----> ", settings);
+				resolve(settings);
+			});
 	});
 }
 
 function setSettings(settings) {
+	let datasourceid = 'twitterSettings';
 	return new Promise((resolve, reject) => {
-		inlineSettings = settings;
-		resolve(inlineSettings);
+		kvc.Write(datasourceid, "settings", settings)
+			.then(() => {
+				console.log('[setSettings] settings saved', settings);
+				resolve(settings);
+			})
+			.catch((err) => {
+				console.log("Error setting settings", err);
+				reject(err);
+			});
 	});
 }
 
