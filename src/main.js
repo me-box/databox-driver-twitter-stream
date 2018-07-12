@@ -3,7 +3,6 @@ const https = require('https');
 const express = require("express");
 const bodyParser = require("body-parser");
 const oauth = require('oauth');
-const url = require('url');
 const databox = require('node-databox');
 
 const twitter = require('./twitter.js')();
@@ -24,11 +23,6 @@ const PORT = process.env.port || '8080';
 const HASH_TAGS_TO_TRACK = ['#raspberrypi', '#mozfest', '#databox', '#iot', '#NobelPrize'];
 
 const app = express();
-
-function isProxied(req) {
-
-	return false;
-}
 
 app.use(bodyParser.urlencoded({extended: true}));
 
@@ -62,10 +56,9 @@ app.post('/ui/login', (req, res) => {
 				settings.consumer_secret = req.body.consumer_secret;
 			}
 
-			const callback = urlRoot;
 			consumer = new oauth.OAuth(
 				"https://api.twitter.com/oauth/request_token", "https://api.twitter.com/oauth/access_token",
-				settings.consumer_key, settings.consumer_secret, "1.0A", callback, "HMAC-SHA1");
+				settings.consumer_key, settings.consumer_secret, "1.0A", urlRoot, "HMAC-SHA1");
 			consumer.getOAuthRequestToken(function (error, oauthToken, oauthTokenSecret, results) {
 				if (error) {
 					res.send("Error getting OAuth request token : " + JSON.stringify(error), 500);
