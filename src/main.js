@@ -90,7 +90,11 @@ app.get('/ui/oauth', (req, res) => {
 					setSettings(settings)
 						.then(() => {
 							let redirectURL = settings.redirect;
-							redirectURL = redirectURL.replace('/ui/oauth', '/ui').replace('/driver-twitter', '/#!/driver-twitter');
+							redirectURL = redirectURL.replace('/driver-twitter/ui/oauth', '/core-ui/ui/view?ui=driver-twitter')
+							twitter.connect(settings)
+								.then( (T)=> {
+									monitorTwitterEvents(T, settings);
+								})
 							res.render('redirect', {url: redirectURL});
 						});
 				}
@@ -229,50 +233,38 @@ tsc.RegisterDatasource(timeLine)
 	})
 	.catch((err) => {
 		console.log("Error registering data source:" + err);
-	});
-
-let inlineSettings = DefaultTwitConfig;
-inlineSettings.hashTags = HASH_TAGS_TO_TRACK;
-
-getSettings()
-	.then((settings) => {
-		console.log("Twitter Auth");
-		if (settings.hasOwnProperty('consumer_key')) {
-			return Promise.all([twitter.connect(settings), Promise.resolve(settings)]);
-		} else {
-			return Promise.all([Promise.resolve(null), Promise.resolve(settings)]);
-		}
 	})
-	.then((data) => {
-		console.log("Connected to twitter!");
+	.then(() => {
+		let inlineSettings = DefaultTwitConfig;
+		inlineSettings.hashTags = HASH_TAGS_TO_TRACK;
 
-		let T = data[0];
-		let settings = data[1];
+		getSettings()
+		.then((settings) => {
+			console.log("Twitter Auth");
+			if (settings.hasOwnProperty('consumer_key')) {
+				return Promise.all([twitter.connect(settings), Promise.resolve(settings)]);
+			} else {
+				return Promise.all([Promise.resolve(null), Promise.resolve(settings)]);
+			}
+		})
+		.then((data) => {
+			console.log("Connected to twitter!");
 
-		// //deal with the actuator
-		// tsc.Observe(testActuator.DataSourceID, 0)
-		// 	.catch((err) => {
-		// 		console.log("[Actuation observing error]", err);
-		// 	})
-		// 	.then((eventEmitter) => {
-		// 		eventEmitter.on('data', (data) => {
-		// 			console.log("[Actuation] data received ", data);
-		// 		});
-		// 	})
-		// 	.catch((err) => {
-		// 		console.log("[Actuation error]", err);
-		// 	});
+			let T = data[0];
+			let settings = data[1];
 
-		if (T != null) {
-			monitorTwitterEvents(T, settings);
-		}
+			if (T != null) {
+				monitorTwitterEvents(T, settings);
+			}
 
+		})
 	})
 	.catch((err) => {
+		console.log("[ERROR]", err);
+		let settings = {}
 		settings.access_token = null;
 		settings.access_token_secret = null;
-		setSettings(setSettings());
-		console.log("[ERROR]", err);
+		setSettings(settings);
 	});
 
 let streams = [];
@@ -322,6 +314,7 @@ function getSettings() {
 	return new Promise((resolve, reject) => {
 		kvc.Read(datasourceid, "settings")
 			.then((settings) => {
+				console.log("[getSettings] read response = ", settings);
 				if (Object.keys(settings).length === 0) {
 					//return defaults
 					let settings = DefaultTwitConfig;
