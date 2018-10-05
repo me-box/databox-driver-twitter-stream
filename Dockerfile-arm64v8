@@ -6,6 +6,9 @@ npm install zeromq --zmq-external --save && \
 npm install --production && npm run clean && \
 apk del make gcc g++ python curl git krb5-dev
 
+RUN addgroup -S databox && adduser -S -g databox databox
+USER databox
+
 COPY . .
 
 LABEL databox.type="app"
