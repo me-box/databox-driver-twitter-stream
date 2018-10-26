@@ -190,8 +190,8 @@ let userFav = databox.NewDataSourceMetadata();
 userFav.Description = 'Twitter users favourites tweets';
 userFav.ContentType = 'application/json';
 userFav.Vendor = 'Databox Inc.';
-userFav.DataSourceType = 'twitterFavorite';
-userFav.DataSourceID = 'twitterFavorite';
+userFav.DataSourceType = 'twitterFavourites';
+userFav.DataSourceID = 'twitterFavourites';
 userFav.StoreType = 'ts';
 
 let testActuator = databox.NewDataSourceMetadata();
