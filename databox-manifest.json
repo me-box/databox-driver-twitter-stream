@@ -19,8 +19,7 @@
 		"type": "git",
 		"url": "git+https://github.com/me-box/driver-twitter.git"
 	},
-	"network-permissions": [
-	],
+
 	"external-whitelist": [
 		{
 			"urls": [
@@ -33,9 +32,41 @@
 			"description": "Used by node package `twit` to access Twitter API"
 		}
 	],
-	"hardware-permissions": [
-	],
+
 	"resource-requirements": {
 		"store": "core-store"
-	}
+	},
+
+	"provides": [
+		{
+			"data-source-type": "twitterUserTimeLine",
+			"description": "Twitter user timeline data",
+			"store-type": "tsblob",
+			"schema": {}
+		},
+		{
+			"data-source-type": "twitterHashTagStream",
+			"description": "Twitter user hashtag data",
+			"store-type": "tsblob",
+			"schema": {}
+		},
+		{
+			"data-source-type": "twitterDirectMessage",
+			"description": "Twitter users direct messages",
+			"store-type": "tsblob",
+			"schema": {}
+		},
+		{
+			"data-source-type": "twitterFavourites",
+			"description": "Twitter users favourites tweets",
+			"store-type": "tsblob",
+			"schema": {}
+		},
+		{
+			"data-source-type": "Test Actuator",
+			"description": "testActuator",
+			"store-type": "tsblob",
+			"schema": {}
+		}
+	]
 }
