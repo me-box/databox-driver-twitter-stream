@@ -4,6 +4,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const oauth = require('oauth');
 const databox = require('node-databox');
+const dns = require('dns');
 
 const twitter = require('./twitter.js')();
 
@@ -25,6 +26,7 @@ const HASH_TAGS_TO_TRACK = ['#raspberrypi', '#mozfest', '#databox', '#iot', '#No
 const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
 
 app.use('/ui', express.static('./src/www'));
 app.set('views', './src/views');
@@ -90,7 +92,7 @@ app.get('/ui/oauth', (req, res) => {
 					setSettings(settings)
 						.then(() => {
 							let redirectURL = settings.redirect;
-							redirectURL = redirectURL.replace('/driver-twitter/ui/oauth', '/core-ui/ui/view?ui=driver-twitter')
+							redirectURL = redirectURL.replace('/driver-twitter/ui/oauth', '/core-ui/ui/view/driver-twitter')
 							twitter.connect(settings)
 								.then( (T)=> {
 									monitorTwitterEvents(T, settings);
@@ -117,9 +119,9 @@ app.post('/ui/logout', (req, res) => {
 });
 
 
-app.get('/ui/setHashTags', function (req, res) {
-	let newHashTags = req.query.hashTags;
-	console.log(newHashTags);
+app.post('/ui/setHashTags', function (req, res) {
+	console.log("[setHashTags] body", req.body);
+	let newHashTags = req.body.hashTags;
 	getSettings()
 		.then((settings) => {
 			settings.hashTags = newHashTags.split(',');
@@ -212,9 +214,11 @@ driverSettings.DataSourceID = 'twitterSettings';
 driverSettings.StoreType = 'kv';
 
 
-tsc.RegisterDatasource(timeLine)
+tsc.RegisterDatasource(hashTag)
+	// TODO find some way to replace this old functionality with the activity api
+/*
 	.then(() => {
-		return tsc.RegisterDatasource(hashTag);
+		return tsc.RegisterDatasource(timeLine);
 	})
 	.then(() => {
 		return tsc.RegisterDatasource(userDM);
@@ -228,17 +232,33 @@ tsc.RegisterDatasource(timeLine)
 	.then(() => {
 		return tsc.RegisterDatasource(testActuator);
 	})
+*/
 	.then(() => {
 		return kvc.RegisterDatasource(driverSettings);
 	})
 	.catch((err) => {
 		console.log("Error registering data source:" + err);
 	})
+	.then(() => new Promise(function (resolve,reject) {
+		// ensure core-network permissions are in place
+		let lookup = function() {
+			dns.resolve('api.twitter.com', function(err, records) {
+				if (err) {
+					console.log("DNS lookup failed; retrying...");
+					setTimeout(lookup, 1000);
+					return;
+				}
+				console.log("DNS ok (for twitter)");
+				resolve();
+			})
+		}
+		lookup();
+	}))
 	.then(() => {
 		let inlineSettings = DefaultTwitConfig;
 		inlineSettings.hashTags = HASH_TAGS_TO_TRACK;
 
-		getSettings()
+		return getSettings()
 		.then((settings) => {
 			console.log("Twitter Auth");
 			if (settings.hasOwnProperty('consumer_key')) {
@@ -278,8 +298,16 @@ const monitorTwitterEvents = (twit, settings) => {
 	HashtagStream.on('tweet', function (tweet) {
 		save('twitterHashTagStream', tweet);
 	});
+	HashtagStream.on('error', function(err) {
+		console.log("Hashtag stream error", err);
+	});
 
-	const UserStream = twit.stream('user', {stringify_friend_ids: true, with: 'followings', replies: 'all'});
+	// TODO find some way to replace this old functionality using
+	// the activity API?! but that needs webhooks...
+	// https://github.com/ttezel/twit/issues/509
+	// https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview
+/*
+	const UserStream = twit.stream('user', {stringify_friend_ids: true, 'with': 'followings', replies: 'all'});
 	streams.push(UserStream);
 	UserStream.on('tweet', function (event) {
 		save('twitterUserTimeLine', event);
@@ -300,6 +328,10 @@ const monitorTwitterEvents = (twit, settings) => {
 	UserStream.on('direct_message', function (event) {
 		save('twitterDirectMessage', event);
 	});
+	UserStream.on('error', function(err) {
+		console.log("User stream error", err);
+	});
+*/
 };
 
 function stopAllStreams() {

@@ -8,7 +8,15 @@ if(oauth) {
 
 document.getElementById('save_hashtags').addEventListener('click', function () {
 	const hashTags = document.getElementById('hashTags').value;
-	fetch('ui/setHashTags', {credentials: "include", body: JSON.stringify({'hashTags': hashTags})})
+	console.log('hashTags', hashTags)
+	fetch('setHashTags', {
+		method: "POST", 
+		credentials: "include", 
+		headers: {
+			'Content-Type': 'application/json'
+		},
+		body: JSON.stringify({'hashTags': hashTags})
+	})
 		.then(function () {
 			document.getElementById('hashtag_msg').innerText = "Saved!"
 		})

@@ -26,13 +26,20 @@ This driver writes twitter event data into a store-json for later processing.
 
 It saves the following streams of data:
 
-    1. twitterUserTimeLine - the logged in users timeline
-    2. twitterHashTagStream - tweets that contain #raspberrypi, #mozfest, #databox, #iot and #NobelPrize
+    1. twitterHashTagStream - tweets that contain #raspberrypi, #mozfest, #databox, #iot and #NobelPriz (hashtags can be changed in the driver settings)
+
+These can then be accessed store-json API.
+
+The driver used to provide the following from the user stream, but this
+is no longer supported:
+
+    2. twitterUserTimeLine - the logged in users timeline
     3. twitterDirectMessage - a list of the users' direct messages
     4. twittrRetweet - a list of the users' retweets
     5. twitterFavorite - a list of the users favourited
 
-These can then be accessed store-json API.
+The latter items can now only be accessed via webhooks, so not direct to
+a NATed databox driver!
 
 
 # Implementing OAuth in Databox
