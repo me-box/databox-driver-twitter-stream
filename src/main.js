@@ -48,6 +48,7 @@ app.post('/ui/login', (req, res) => {
 	getSettings()
 		.then((settings) => {
 			let urlRoot = req.body.callback;
+			console.log("[/ui/login] override callback = "+urlRoot);
 			if (urlRoot == null) {
 				urlRoot = "https://localhost/driver-twitter/ui/oauth"
 			}
@@ -229,10 +230,10 @@ tsc.RegisterDatasource(hashTag)
 	.then(() => {
 		return tsc.RegisterDatasource(userFav);
 	})
+*/
 	.then(() => {
 		return tsc.RegisterDatasource(testActuator);
 	})
-*/
 	.then(() => {
 		return kvc.RegisterDatasource(driverSettings);
 	})
@@ -281,10 +282,13 @@ tsc.RegisterDatasource(hashTag)
 	})
 	.catch((err) => {
 		console.log("[ERROR]", err);
-		let settings = {}
-		settings.access_token = null;
-		settings.access_token_secret = null;
-		setSettings(settings);
+		getSettings()
+                .then((settings) => {
+			settings.access_token = null;
+			settings.access_token_secret = null;
+			setSettings(settings);
+
+		})
 	});
 
 let streams = [];
