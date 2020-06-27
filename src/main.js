@@ -4,6 +4,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const oauth = require('oauth');
 const databox = require('node-databox');
+const dns = require('dns');
 
 const twitter = require('./twitter.js')();
 
@@ -14,9 +15,10 @@ try {
 	DefaultTwitConfig = {};
 }
 
+const DATABOX_ARBITER_ENDPOINT = process.env.DATABOX_ARBITER_ENDPOINT || 'tcp://127.0.0.1:4444';
 const DATABOX_ZMQ_ENDPOINT = process.env.DATABOX_ZMQ_ENDPOINT;
 
-const credentials = databox.getHttpsCredentials();
+const credentials = databox.GetHttpsCredentials();
 
 const PORT = process.env.port || '8080';
 
@@ -25,6 +27,7 @@ const HASH_TAGS_TO_TRACK = ['#raspberrypi', '#mozfest', '#databox', '#iot', '#No
 const app = express();
 
 app.use(bodyParser.urlencoded({extended: true}));
+app.use(bodyParser.json());
 
 app.use('/ui', express.static('./src/www'));
 app.set('views', './src/views');
@@ -46,6 +49,7 @@ app.post('/ui/login', (req, res) => {
 	getSettings()
 		.then((settings) => {
 			let urlRoot = req.body.callback;
+			console.log("[/ui/login] override callback = "+urlRoot);
 			if (urlRoot == null) {
 				urlRoot = "https://localhost/driver-twitter/ui/oauth"
 			}
@@ -90,7 +94,7 @@ app.get('/ui/oauth', (req, res) => {
 					setSettings(settings)
 						.then(() => {
 							let redirectURL = settings.redirect;
-							redirectURL = redirectURL.replace('/driver-twitter/ui/oauth', '/core-ui/ui/view?ui=driver-twitter')
+							redirectURL = redirectURL.replace('/driver-twitter/ui/oauth', '/core-ui/ui/view/driver-twitter')
 							twitter.connect(settings)
 								.then( (T)=> {
 									monitorTwitterEvents(T, settings);
@@ -117,9 +121,9 @@ app.post('/ui/logout', (req, res) => {
 });
 
 
-app.get('/ui/setHashTags', function (req, res) {
-	let newHashTags = req.query.hashTags;
-	console.log(newHashTags);
+app.post('/ui/setHashTags', function (req, res) {
+	console.log("[setHashTags] body", req.body);
+	let newHashTags = req.body.hashTags;
 	getSettings()
 		.then((settings) => {
 			settings.hashTags = newHashTags.split(',');
@@ -151,8 +155,7 @@ console.log("[Creating server]");
 https.createServer(credentials, app).listen(PORT);
 module.exports = app;
 
-let tsc = databox.NewTimeSeriesBlobClient(DATABOX_ZMQ_ENDPOINT, false);
-let kvc = databox.NewKeyValueClient(DATABOX_ZMQ_ENDPOINT, false);
+let sc = databox.NewStoreClient(DATABOX_ZMQ_ENDPOINT, DATABOX_ARBITER_ENDPOINT, false);
 
 let timeLine = databox.NewDataSourceMetadata();
 timeLine.Description = 'Twitter user timeline data';
@@ -160,7 +163,7 @@ timeLine.ContentType = 'application/json';
 timeLine.Vendor = 'Databox Inc.';
 timeLine.DataSourceType = 'twitterUserTimeLine';
 timeLine.DataSourceID = 'twitterUserTimeLine';
-timeLine.StoreType = 'ts';
+timeLine.StoreType = 'ts/blob';
 
 let hashTag = databox.NewDataSourceMetadata();
 hashTag.Description = 'Twitter user hashtag data';
@@ -168,7 +171,7 @@ hashTag.ContentType = 'application/json';
 hashTag.Vendor = 'Databox Inc.';
 hashTag.DataSourceType = 'twitterHashTagStream';
 hashTag.DataSourceID = 'twitterHashTagStream';
-hashTag.StoreType = 'ts';
+hashTag.StoreType = 'ts/blob';
 
 let userDM = databox.NewDataSourceMetadata();
 userDM.Description = 'Twitter users direct messages';
@@ -176,7 +179,7 @@ userDM.ContentType = 'application/json';
 userDM.Vendor = 'Databox Inc.';
 userDM.DataSourceType = 'twitterDirectMessage';
 userDM.DataSourceID = 'twitterDirectMessage';
-userDM.StoreType = 'ts';
+userDM.StoreType = 'ts/blob';
 
 let userRetweet = databox.NewDataSourceMetadata();
 userRetweet.Description = 'Twitter users retweets';
@@ -184,7 +187,7 @@ userRetweet.ContentType = 'application/json';
 userRetweet.Vendor = 'Databox Inc.';
 userRetweet.DataSourceType = 'twitterRetweet';
 userRetweet.DataSourceID = 'twitterRetweet';
-userRetweet.StoreType = 'ts';
+userRetweet.StoreType = 'ts/blob';
 
 let userFav = databox.NewDataSourceMetadata();
 userFav.Description = 'Twitter users favourites tweets';
@@ -192,7 +195,7 @@ userFav.ContentType = 'application/json';
 userFav.Vendor = 'Databox Inc.';
 userFav.DataSourceType = 'twitterFavourites';
 userFav.DataSourceID = 'twitterFavourites';
-userFav.StoreType = 'ts';
+userFav.StoreType = 'ts/blob';
 
 let testActuator = databox.NewDataSourceMetadata();
 testActuator.Description = 'Test Actuator';
@@ -200,7 +203,7 @@ testActuator.ContentType = 'application/json';
 testActuator.Vendor = 'Databox Inc.';
 testActuator.DataSourceType = 'testActuator';
 testActuator.DataSourceID = 'testActuator';
-testActuator.StoreType = 'ts';
+testActuator.StoreType = 'ts/blob';
 testActuator.IsActuator = true;
 
 let driverSettings = databox.NewDataSourceMetadata();
@@ -212,33 +215,51 @@ driverSettings.DataSourceID = 'twitterSettings';
 driverSettings.StoreType = 'kv';
 
 
-tsc.RegisterDatasource(timeLine)
+sc.RegisterDatasource(hashTag)
+	// TODO find some way to replace this old functionality with the activity api
+/*
 	.then(() => {
-		return tsc.RegisterDatasource(hashTag);
+		return sc.RegisterDatasource(timeLine);
 	})
 	.then(() => {
-		return tsc.RegisterDatasource(userDM);
+		return sc.RegisterDatasource(userDM);
 	})
 	.then(() => {
-		return tsc.RegisterDatasource(userRetweet);
+		return sc.RegisterDatasource(userRetweet);
 	})
 	.then(() => {
-		return tsc.RegisterDatasource(userFav);
+		return sc.RegisterDatasource(userFav);
+	})
+*/
+	.then(() => {
+		return sc.RegisterDatasource(testActuator);
 	})
 	.then(() => {
-		return tsc.RegisterDatasource(testActuator);
-	})
-	.then(() => {
-		return kvc.RegisterDatasource(driverSettings);
+		return sc.RegisterDatasource(driverSettings);
 	})
 	.catch((err) => {
 		console.log("Error registering data source:" + err);
 	})
+	.then(() => new Promise(function (resolve,reject) {
+		// ensure core-network permissions are in place
+		let lookup = function() {
+			dns.resolve('api.twitter.com', function(err, records) {
+				if (err) {
+					console.log("DNS lookup failed; retrying...");
+					setTimeout(lookup, 1000);
+					return;
+				}
+				console.log("DNS ok (for twitter)");
+				resolve();
+			})
+		}
+		lookup();
+	}))
 	.then(() => {
 		let inlineSettings = DefaultTwitConfig;
 		inlineSettings.hashTags = HASH_TAGS_TO_TRACK;
 
-		getSettings()
+		return getSettings()
 		.then((settings) => {
 			console.log("Twitter Auth");
 			if (settings.hasOwnProperty('consumer_key')) {
@@ -261,10 +282,13 @@ tsc.RegisterDatasource(timeLine)
 	})
 	.catch((err) => {
 		console.log("[ERROR]", err);
-		let settings = {}
-		settings.access_token = null;
-		settings.access_token_secret = null;
-		setSettings(settings);
+		getSettings()
+                .then((settings) => {
+			settings.access_token = null;
+			settings.access_token_secret = null;
+			setSettings(settings);
+
+		})
 	});
 
 let streams = [];
@@ -278,8 +302,16 @@ const monitorTwitterEvents = (twit, settings) => {
 	HashtagStream.on('tweet', function (tweet) {
 		save('twitterHashTagStream', tweet);
 	});
+	HashtagStream.on('error', function(err) {
+		console.log("Hashtag stream error", err);
+	});
 
-	const UserStream = twit.stream('user', {stringify_friend_ids: true, with: 'followings', replies: 'all'});
+	// TODO find some way to replace this old functionality using
+	// the activity API?! but that needs webhooks...
+	// https://github.com/ttezel/twit/issues/509
+	// https://developer.twitter.com/en/docs/accounts-and-users/subscribe-account-activity/overview
+/*
+	const UserStream = twit.stream('user', {stringify_friend_ids: true, 'with': 'followings', replies: 'all'});
 	streams.push(UserStream);
 	UserStream.on('tweet', function (event) {
 		save('twitterUserTimeLine', event);
@@ -300,6 +332,10 @@ const monitorTwitterEvents = (twit, settings) => {
 	UserStream.on('direct_message', function (event) {
 		save('twitterDirectMessage', event);
 	});
+	UserStream.on('error', function(err) {
+		console.log("User stream error", err);
+	});
+*/
 };
 
 function stopAllStreams() {
@@ -312,7 +348,7 @@ function stopAllStreams() {
 function getSettings() {
 	datasourceid = 'twitterSettings';
 	return new Promise((resolve, reject) => {
-		kvc.Read(datasourceid, "settings")
+		sc.KV.Read(datasourceid, "settings")
 			.then((settings) => {
 				console.log("[getSettings] read response = ", settings);
 				if (Object.keys(settings).length === 0) {
@@ -338,7 +374,7 @@ function getSettings() {
 function setSettings(settings) {
 	let datasourceid = 'twitterSettings';
 	return new Promise((resolve, reject) => {
-		kvc.Write(datasourceid, "settings", settings)
+		sc.KV.Write(datasourceid, "settings", settings)
 			.then(() => {
 				console.log('[setSettings] settings saved', settings);
 				resolve(settings);
@@ -351,9 +387,9 @@ function setSettings(settings) {
 }
 
 function save(datasourceid, data) {
-	console.log("Saving tweet::", data.text);
+	console.log(`Saving tweet to ${datasourceid}::`, data.text);
 	json = {"data": data};
-	tsc.Write(datasourceid, data)
+	sc.TSBlob.Write(datasourceid, data)
 		.then((resp) => {
 			console.log("Save got response ", resp);
 		})
